@@ -5,3 +5,7 @@ retry = 10
 [http]
 timeout = 60
 low-speed-limit = 10
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-Wl,--exclude-all-symbols"]
+
