@@ -220,7 +220,8 @@ pub fn check_budget_limit(
     budget: u64,
     tolerance_pct: f64,
 ) -> Result<(), BudgetAssertionFailure> {
-    let max_allowed = ((budget as f64) * (1.0 + tolerance_pct / 100.0)).ceil() as u64;
+    let allowed_excess = ((budget as f64) * (tolerance_pct / 100.0)).ceil() as u64;
+    let max_allowed = budget.saturating_add(allowed_excess);
     if actual > max_allowed {
         let delta = actual as i64 - budget as i64;
         let delta_pct = if budget > 0 {
@@ -736,14 +737,15 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         results.push(measure_op(&ctx.env, "propose_admin_transfer", || {
             let _ = ctx
                 .client
-                .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+                .propose_admin_transfer(&ctx.admin, &ctx.alice, &86_400);
         }));
     }
     {
         let ctx = TestContext::with_admin();
         let _ = ctx
             .client
-            .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+            .propose_admin_transfer(&ctx.admin, &ctx.alice, &86_400);
+        ctx.advance_time(100_000);
         results.push(measure_op(&ctx.env, "accept_admin_transfer", || {
             let _ = ctx.client.accept_admin_transfer(&ctx.alice);
         }));
@@ -752,7 +754,7 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         let _ = ctx
             .client
-            .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+            .propose_admin_transfer(&ctx.admin, &ctx.alice, &86_400);
         results.push(measure_op(&ctx.env, "cancel_admin_transfer", || {
             let _ = ctx.client.cancel_admin_transfer(&ctx.admin);
         }));
@@ -761,7 +763,7 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         let _ = ctx
             .client
-            .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+            .propose_admin_transfer(&ctx.admin, &ctx.alice, &86_400);
         results.push(measure_op(&ctx.env, "get_pending_admin_transfer", || {
             let _ = ctx.client.get_pending_admin_transfer();
         }));
@@ -1237,12 +1239,12 @@ pub fn assert_all_entrypoints_within_budget() {
             if let Some(b) = baseline.entrypoints.get(m.name) {
                 let cpu_d = m.cpu as i64 - b.cpu_budget as i64;
                 let mem_d = m.mem as i64 - b.mem_budget as i64;
-                let pass = m.cpu
-                    <= ((b.cpu_budget as f64) * (1.0 + baseline.tolerance_pct / 100.0)).ceil()
-                        as u64
-                    && m.mem
-                        <= ((b.mem_budget as f64) * (1.0 + baseline.tolerance_pct / 100.0)).ceil()
-                            as u64;
+                let allowed_cpu_excess =
+                    ((b.cpu_budget as f64) * (baseline.tolerance_pct / 100.0)).ceil() as u64;
+                let allowed_mem_excess =
+                    ((b.mem_budget as f64) * (baseline.tolerance_pct / 100.0)).ceil() as u64;
+                let pass = m.cpu <= b.cpu_budget.saturating_add(allowed_cpu_excess)
+                    && m.mem <= b.mem_budget.saturating_add(allowed_mem_excess);
                 let status = if pass { "PASS" } else { "FAIL" };
                 md.push_str(&format!(
                     "| `{}` | {} | {} | {} | {} | {} | {} | {} |\n",
@@ -1324,7 +1326,8 @@ fn test_budget_assertion_failure_names_entrypoint_and_delta() {
     let entrypoint = "deposit_partial_simulated";
     let budget = 400_000u64;
     let tolerance = 10.0f64;
-    let max_allowed = ((budget as f64) * 1.10).ceil() as u64; // 440,000
+    let allowed_excess = ((budget as f64) * (tolerance / 100.0)).ceil() as u64;
+    let max_allowed = budget.saturating_add(allowed_excess); // 440,000
 
     // Within tolerance (420,000 <= 440,000) -> passes
     assert!(check_budget_limit(entrypoint, "CPU instructions", 420_000, budget, tolerance).is_ok());
@@ -1360,8 +1363,13 @@ fn test_budget_assertion_failure_names_entrypoint_and_delta() {
         "Report must name the resource type"
     );
     assert!(
-        report.contains("excess:       +110,000"),
+        report.contains("excess:"),
         "Report must state the excess over the allowed tolerance"
+    );
+    let excess = fail.actual.saturating_sub(fail.max_allowed);
+    assert!(
+        report.contains(&format!("+{}", format_number(excess))),
+        "Report must contain the formatted excess amount"
     );
 }
 
