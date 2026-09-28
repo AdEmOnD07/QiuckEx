@@ -9,6 +9,8 @@
 //! Budget changes require an explicit, reviewable update to `entrypoint-budgets.json` rather
 //! than passing silently. Set `QUICKEX_UPDATE_BUDGETS=1` to regenerate the baseline file.
 
+#![allow(clippy::let_unit_value)]
+
 extern crate std;
 
 use std::{
@@ -18,9 +20,7 @@ use std::{
     vec::Vec as StdVec,
 };
 
-use soroban_sdk::{
-    BytesN, Env, Vec,
-};
+use soroban_sdk::{BytesN, Env, Vec};
 
 use crate::{
     batch::{BatchCreateItem, BatchRefundItem, BatchReleaseItem},
@@ -30,9 +30,7 @@ use crate::{
     storage::PauseFlag,
     test_context::TestContext,
     ttl_policy::TtlConfig,
-    types::{
-        FeeConfig, OracleFeeConfig, PerAssetFeeConfig, Role, StealthDepositParams,
-    },
+    types::{FeeConfig, OracleFeeConfig, PerAssetFeeConfig, Role, StealthDepositParams},
 };
 
 pub const BUDGET_BASELINE_JSON: &str = include_str!("../entrypoint-budgets.json");
@@ -267,22 +265,30 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::new();
         let salt = ctx.salt(b"create_comm");
         results.push(measure_op(&ctx.env, "create_amount_commitment", || {
-            let _ = ctx.client.create_amount_commitment(&ctx.alice, &10_000, &salt);
+            let _ = ctx
+                .client
+                .create_amount_commitment(&ctx.alice, &10_000, &salt);
         }));
     }
     {
         let ctx = TestContext::new();
         let salt = ctx.salt(b"verify_comm");
-        let comm = ctx.client.create_amount_commitment(&ctx.alice, &10_000, &salt);
+        let comm = ctx
+            .client
+            .create_amount_commitment(&ctx.alice, &10_000, &salt);
         results.push(measure_op(&ctx.env, "verify_amount_commitment", || {
-            let _ = ctx.client.verify_amount_commitment(&comm, &ctx.alice, &10_000, &salt);
+            let _ = ctx
+                .client
+                .verify_amount_commitment(&comm, &ctx.alice, &10_000, &salt);
         }));
     }
     {
         let ctx = TestContext::new();
         let salt = ctx.salt(b"derive_id");
         results.push(measure_op(&ctx.env, "derive_escrow_id", || {
-            let _ = ctx.client.derive_escrow_id(&ctx.token, &10_000, &ctx.alice, &salt, &600, &None);
+            let _ = ctx
+                .client
+                .derive_escrow_id(&ctx.token, &10_000, &ctx.alice, &salt, &600, &None);
         }));
     }
     {
@@ -291,7 +297,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let mut arbiters = Vec::new(&ctx.env);
         arbiters.push_back(ctx.arbiter.clone());
         results.push(measure_op(&ctx.env, "derive_escrow_id_multi_sig", || {
-            let _ = ctx.client.derive_escrow_id_multi_sig(&ctx.token, &10_000, &ctx.alice, &salt, &600, &arbiters, &1);
+            let _ = ctx.client.derive_escrow_id_multi_sig(
+                &ctx.token, &10_000, &ctx.alice, &salt, &600, &arbiters, &1,
+            );
         }));
     }
     {
@@ -299,7 +307,16 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let salt = ctx.salt(b"deposit");
         ctx.mint(&ctx.alice, 10_000);
         results.push(measure_op(&ctx.env, "deposit", || {
-            let _ = ctx.client.deposit(&ctx.token, &10_000, &ctx.alice, &salt, &0, &None, &0, &u64::MAX);
+            let _ = ctx.client.deposit(
+                &ctx.token,
+                &10_000,
+                &ctx.alice,
+                &salt,
+                &0,
+                &None,
+                &0,
+                &u64::MAX,
+            );
         }));
     }
     {
@@ -307,7 +324,16 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let comm = BytesN::from_array(&ctx.env, &[0x33; 32]);
         ctx.mint(&ctx.alice, 10_000);
         results.push(measure_op(&ctx.env, "deposit_with_commitment", || {
-            let _ = ctx.client.deposit_with_commitment(&ctx.alice, &ctx.token, &10_000, &comm, &0, &None, &0, &u64::MAX);
+            let _ = ctx.client.deposit_with_commitment(
+                &ctx.alice,
+                &ctx.token,
+                &10_000,
+                &comm,
+                &0,
+                &None,
+                &0,
+                &u64::MAX,
+            );
         }));
     }
     {
@@ -317,7 +343,17 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let mut arbiters = Vec::new(&ctx.env);
         arbiters.push_back(ctx.arbiter.clone());
         results.push(measure_op(&ctx.env, "deposit_multi_sig", || {
-            let _ = ctx.client.deposit_multi_sig(&ctx.token, &10_000, &ctx.alice, &salt, &600, &arbiters, &1, &0, &u64::MAX);
+            let _ = ctx.client.deposit_multi_sig(
+                &ctx.token,
+                &10_000,
+                &ctx.alice,
+                &salt,
+                &600,
+                &arbiters,
+                &1,
+                &0,
+                &u64::MAX,
+            );
         }));
     }
     {
@@ -325,7 +361,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let salt = ctx.salt(b"withdraw");
         let comm = ctx.simple_deposit(&ctx.alice, 10_000, b"withdraw");
         results.push(measure_op(&ctx.env, "withdraw", || {
-            let _ = ctx.client.withdraw(&ctx.token, &10_000, &comm, &ctx.alice, &salt, &0, &u64::MAX);
+            let _ =
+                ctx.client
+                    .withdraw(&ctx.token, &10_000, &comm, &ctx.alice, &salt, &0, &u64::MAX);
         }));
     }
     {
@@ -333,7 +371,17 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let salt = ctx.salt(b"dep_partial");
         ctx.mint(&ctx.alice, 10_000);
         results.push(measure_op(&ctx.env, "deposit_partial", || {
-            let _ = ctx.client.deposit_partial(&ctx.token, &10_000, &1_000, &ctx.alice, &salt, &0, &None, &0, &u64::MAX);
+            let _ = ctx.client.deposit_partial(
+                &ctx.token,
+                &10_000,
+                &1_000,
+                &ctx.alice,
+                &salt,
+                &0,
+                &None,
+                &0,
+                &u64::MAX,
+            );
         }));
     }
     {
@@ -341,16 +389,37 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let salt = ctx.salt(b"part_pay");
         ctx.mint(&ctx.alice, 10_000);
         ctx.mint(&ctx.bob, 10_000);
-        let comm = ctx.client.deposit_partial(&ctx.token, &10_000, &1_000, &ctx.alice, &salt, &0, &None, &0, &u64::MAX);
+        let comm = ctx.client.deposit_partial(
+            &ctx.token,
+            &10_000,
+            &1_000,
+            &ctx.alice,
+            &salt,
+            &0,
+            &None,
+            &0,
+            &u64::MAX,
+        );
         results.push(measure_op(&ctx.env, "partial_payment", || {
-            let _ = ctx.client.partial_payment(&comm, &ctx.bob, &2_000, &0, &u64::MAX);
+            let _ = ctx
+                .client
+                .partial_payment(&comm, &ctx.bob, &2_000, &0, &u64::MAX);
         }));
     }
     {
         let ctx = TestContext::with_admin();
         let salt = ctx.salt(b"refund");
         ctx.mint(&ctx.alice, 10_000);
-        let comm = ctx.client.deposit(&ctx.token, &10_000, &ctx.alice, &salt, &10, &None, &0, &u64::MAX);
+        let comm = ctx.client.deposit(
+            &ctx.token,
+            &10_000,
+            &ctx.alice,
+            &salt,
+            &10,
+            &None,
+            &0,
+            &u64::MAX,
+        );
         ctx.advance_time(20);
         results.push(measure_op(&ctx.env, "refund", || {
             let _ = ctx.client.refund(&comm, &ctx.alice, &0, &u64::MAX);
@@ -360,7 +429,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         let salt = ctx.salt(b"escrow_id_c");
         let _comm = ctx.simple_deposit(&ctx.alice, 10_000, b"escrow_id_c");
-        let id = ctx.client.derive_escrow_id(&ctx.token, &10_000, &ctx.alice, &salt, &0, &None);
+        let id = ctx
+            .client
+            .derive_escrow_id(&ctx.token, &10_000, &ctx.alice, &salt, &0, &None);
         results.push(measure_op(&ctx.env, "get_escrow_id_commitment", || {
             let _ = ctx.client.get_escrow_id_commitment(&id);
         }));
@@ -454,7 +525,16 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         ctx.mint(&ctx.alice, 10_000);
         let salt = ctx.salt(b"batch_rel");
-        let _comm = ctx.client.deposit(&ctx.token, &1_000, &ctx.alice, &salt, &0, &None, &1, &u64::MAX);
+        let _comm = ctx.client.deposit(
+            &ctx.token,
+            &1_000,
+            &ctx.alice,
+            &salt,
+            &0,
+            &None,
+            &1,
+            &u64::MAX,
+        );
         let mut items = Vec::new(&ctx.env);
         items.push_back(BatchReleaseItem {
             to: ctx.alice.clone(),
@@ -471,7 +551,16 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         ctx.mint(&ctx.alice, 10_000);
         let salt = ctx.salt(b"batch_ref");
-        let comm = ctx.client.deposit(&ctx.token, &1_000, &ctx.alice, &salt, &10, &None, &1, &u64::MAX);
+        let comm = ctx.client.deposit(
+            &ctx.token,
+            &1_000,
+            &ctx.alice,
+            &salt,
+            &10,
+            &None,
+            &1,
+            &u64::MAX,
+        );
         ctx.advance_time(20);
         let mut items = Vec::new(&ctx.env);
         items.push_back(BatchRefundItem {
@@ -516,7 +605,16 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         let salt = ctx.salt(b"fin_exp");
         ctx.mint(&ctx.alice, 10_000);
-        let comm = ctx.client.deposit(&ctx.token, &10_000, &ctx.alice, &salt, &10, &None, &0, &u64::MAX);
+        let comm = ctx.client.deposit(
+            &ctx.token,
+            &10_000,
+            &ctx.alice,
+            &salt,
+            &10,
+            &None,
+            &0,
+            &u64::MAX,
+        );
         ctx.advance_time(20);
         results.push(measure_op(&ctx.env, "finalize_expired_escrow", || {
             let _ = ctx.client.finalize_expired_escrow(&comm);
@@ -526,7 +624,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let ctx = TestContext::with_admin();
         let salt = ctx.salt(b"cleanup");
         let comm = ctx.simple_deposit(&ctx.alice, 10_000, b"cleanup");
-        let _ = ctx.client.withdraw(&ctx.token, &10_000, &comm, &ctx.alice, &salt, &0, &u64::MAX);
+        let _ = ctx
+            .client
+            .withdraw(&ctx.token, &10_000, &comm, &ctx.alice, &salt, &0, &u64::MAX);
         results.push(measure_op(&ctx.env, "cleanup_escrow", || {
             let _ = ctx.client.cleanup_escrow(&comm);
         }));
@@ -545,7 +645,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let comm = ctx.deposit_with_arbiter(&ctx.alice, 10_000, b"res_disp", 600);
         let _ = ctx.client.dispute(&comm);
         results.push(measure_op(&ctx.env, "resolve_dispute", || {
-            let _ = ctx.client.resolve_dispute(&ctx.arbiter, &comm, &false, &ctx.bob, &0, &u64::MAX);
+            let _ =
+                ctx.client
+                    .resolve_dispute(&ctx.arbiter, &comm, &false, &ctx.bob, &0, &u64::MAX);
         }));
     }
     {
@@ -570,7 +672,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let comm = ctx.deposit_with_arbiters(&ctx.alice, 10_000, b"vote_disp", 600, &arbiters, 2);
         let _ = ctx.client.dispute(&comm);
         results.push(measure_op(&ctx.env, "vote_for_dispute", || {
-            let _ = ctx.client.vote_for_dispute(&ctx.arbiter, &comm, &true, &0, &u64::MAX);
+            let _ = ctx
+                .client
+                .vote_for_dispute(&ctx.arbiter, &comm, &true, &0, &u64::MAX);
         }));
     }
     {
@@ -578,7 +682,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         let arbiters = [ctx.arbiter.clone()];
         let comm = ctx.deposit_with_arbiters(&ctx.alice, 10_000, b"res_ms", 600, &arbiters, 1);
         let _ = ctx.client.dispute(&comm);
-        let _ = ctx.client.vote_for_dispute(&ctx.arbiter, &comm, &false, &0, &u64::MAX);
+        let _ = ctx
+            .client
+            .vote_for_dispute(&ctx.arbiter, &comm, &false, &0, &u64::MAX);
         results.push(measure_op(&ctx.env, "resolve_dispute_multi_sig", || {
             let _ = ctx.client.resolve_dispute_multi_sig(&comm, &ctx.bob);
         }));
@@ -628,26 +734,34 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     {
         let ctx = TestContext::with_admin();
         results.push(measure_op(&ctx.env, "propose_admin_transfer", || {
-            let _ = ctx.client.propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+            let _ = ctx
+                .client
+                .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+        let _ = ctx
+            .client
+            .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
         results.push(measure_op(&ctx.env, "accept_admin_transfer", || {
             let _ = ctx.client.accept_admin_transfer(&ctx.alice);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+        let _ = ctx
+            .client
+            .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
         results.push(measure_op(&ctx.env, "cancel_admin_transfer", || {
             let _ = ctx.client.cancel_admin_transfer(&ctx.admin);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
+        let _ = ctx
+            .client
+            .propose_admin_transfer(&ctx.admin, &ctx.alice, &3600);
         results.push(measure_op(&ctx.env, "get_pending_admin_transfer", || {
             let _ = ctx.client.get_pending_admin_transfer();
         }));
@@ -680,9 +794,15 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     }
     {
         let ctx = TestContext::with_admin();
-        results.push(measure_op(&ctx.env, "is_entry_allowed_in_emergency", || {
-            let _ = ctx.client.is_entry_allowed_in_emergency(&EntryPoint::Withdraw);
-        }));
+        results.push(measure_op(
+            &ctx.env,
+            "is_entry_allowed_in_emergency",
+            || {
+                let _ = ctx
+                    .client
+                    .is_entry_allowed_in_emergency(&EntryPoint::Withdraw);
+            },
+        ));
     }
     {
         let ctx = TestContext::with_admin();
@@ -773,14 +893,20 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     }
     {
         let ctx = TestContext::with_admin();
-        let cfg = PerAssetFeeConfig { fee_bps: 150, arbiter_bps: 50 };
+        let cfg = PerAssetFeeConfig {
+            fee_bps: 150,
+            arbiter_bps: 50,
+        };
         results.push(measure_op(&ctx.env, "set_per_asset_fee", || {
             let _ = ctx.client.set_per_asset_fee(&ctx.admin, &ctx.token, &cfg);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let cfg = PerAssetFeeConfig { fee_bps: 150, arbiter_bps: 50 };
+        let cfg = PerAssetFeeConfig {
+            fee_bps: 150,
+            arbiter_bps: 50,
+        };
         let _ = ctx.client.set_per_asset_fee(&ctx.admin, &ctx.token, &cfg);
         results.push(measure_op(&ctx.env, "get_per_asset_fee", || {
             let _ = ctx.client.get_per_asset_fee(&ctx.token);
@@ -812,12 +938,16 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     {
         let ctx = TestContext::with_admin();
         results.push(measure_op(&ctx.env, "set_platform_wallet", || {
-            let _ = ctx.client.set_platform_wallet(&ctx.admin, &ctx.platform_wallet);
+            let _ = ctx
+                .client
+                .set_platform_wallet(&ctx.admin, &ctx.platform_wallet);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.set_platform_wallet(&ctx.admin, &ctx.platform_wallet);
+        let _ = ctx
+            .client
+            .set_platform_wallet(&ctx.admin, &ctx.platform_wallet);
         results.push(measure_op(&ctx.env, "get_platform_wallet", || {
             let _ = ctx.client.get_platform_wallet();
         }));
@@ -844,7 +974,9 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     {
         let ctx = TestContext::with_admin();
         results.push(measure_op(&ctx.env, "withdraw_fees", || {
-            let _ = ctx.client.withdraw_fees(&ctx.admin, &ctx.token, &0, &ctx.platform_wallet);
+            let _ = ctx
+                .client
+                .withdraw_fees(&ctx.admin, &ctx.token, &0, &ctx.platform_wallet);
         }));
     }
 
@@ -876,15 +1008,25 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     }
     {
         let ctx = TestContext::with_admin();
-        results.push(measure_op(&ctx.env, "set_oracle_aggregation_config", || {
-            let _ = ctx.client.set_oracle_aggregation_config(&ctx.admin, &1, &500);
-        }));
+        results.push(measure_op(
+            &ctx.env,
+            "set_oracle_aggregation_config",
+            || {
+                let _ = ctx
+                    .client
+                    .set_oracle_aggregation_config(&ctx.admin, &1, &500);
+            },
+        ));
     }
     {
         let ctx = TestContext::with_admin();
-        results.push(measure_op(&ctx.env, "get_oracle_aggregation_config", || {
-            let _ = ctx.client.get_oracle_aggregation_config();
-        }));
+        results.push(measure_op(
+            &ctx.env,
+            "get_oracle_aggregation_config",
+            || {
+                let _ = ctx.client.get_oracle_aggregation_config();
+            },
+        ));
     }
     {
         let ctx = TestContext::with_admin();
@@ -895,13 +1037,18 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.set_oracle_fee_config(&ctx.admin, &OracleFeeConfig {
-            oracle: ctx.bob.clone(),
-            usd_fee_micros: 1_000_000,
-            stale_threshold_secs: 500,
-        });
+        let _ = ctx.client.set_oracle_fee_config(
+            &ctx.admin,
+            &OracleFeeConfig {
+                oracle: ctx.bob.clone(),
+                usd_fee_micros: 1_000_000,
+                stale_threshold_secs: 500,
+            },
+        );
         let _ = ctx.client.register_oracle_source(&ctx.admin, &ctx.bob);
-        let _ = ctx.client.set_oracle_aggregation_config(&ctx.admin, &1, &500);
+        let _ = ctx
+            .client
+            .set_oracle_aggregation_config(&ctx.admin, &1, &500);
         let _ = ctx.client.record_oracle_source_price(&ctx.bob, &1_000_000);
         results.push(measure_op(&ctx.env, "get_aggregated_oracle_price", || {
             let _ = ctx.client.get_aggregated_oracle_price();
@@ -949,7 +1096,14 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
         ctx.mint(&ctx.alice, 1_000);
         let _ = ctx.client.register_ephemeral_key(&params, &0, &u64::MAX);
         results.push(measure_op(&ctx.env, "stealth_withdraw", || {
-            let _ = ctx.client.stealth_withdraw(&ctx.alice, &eph_pub, &spend_pub, &stealth_address, &0, &u64::MAX);
+            let _ = ctx.client.stealth_withdraw(
+                &ctx.alice,
+                &eph_pub,
+                &spend_pub,
+                &stealth_address,
+                &0,
+                &u64::MAX,
+            );
         }));
     }
     {
@@ -1000,19 +1154,27 @@ pub fn measure_all_entrypoints() -> StdVec<EntrypointMeasurement> {
     {
         let ctx = TestContext::with_admin();
         results.push(measure_op(&ctx.env, "grant_role", || {
-            let _ = ctx.client.grant_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
+            let _ = ctx
+                .client
+                .grant_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.grant_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
+        let _ = ctx
+            .client
+            .grant_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
         results.push(measure_op(&ctx.env, "revoke_role", || {
-            let _ = ctx.client.revoke_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
+            let _ = ctx
+                .client
+                .revoke_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
         }));
     }
     {
         let ctx = TestContext::with_admin();
-        let _ = ctx.client.grant_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
+        let _ = ctx
+            .client
+            .grant_role(&ctx.admin, &ctx.alice, &Role::Arbiter);
         results.push(measure_op(&ctx.env, "get_roles", || {
             let _ = ctx.client.get_roles(&ctx.alice);
         }));
@@ -1050,10 +1212,18 @@ pub fn assert_all_entrypoints_within_budget() {
             .map(|t| t as f64)
             .unwrap_or(baseline.tolerance_pct);
 
-        if let Err(fail) = check_budget_limit(m.name, "CPU instructions", m.cpu, budget.cpu_budget, tolerance) {
+        if let Err(fail) = check_budget_limit(
+            m.name,
+            "CPU instructions",
+            m.cpu,
+            budget.cpu_budget,
+            tolerance,
+        ) {
             failures.push(fail);
         }
-        if let Err(fail) = check_budget_limit(m.name, "Memory bytes", m.mem, budget.mem_budget, tolerance) {
+        if let Err(fail) =
+            check_budget_limit(m.name, "Memory bytes", m.mem, budget.mem_budget, tolerance)
+        {
             failures.push(fail);
         }
     }
@@ -1067,8 +1237,12 @@ pub fn assert_all_entrypoints_within_budget() {
             if let Some(b) = baseline.entrypoints.get(m.name) {
                 let cpu_d = m.cpu as i64 - b.cpu_budget as i64;
                 let mem_d = m.mem as i64 - b.mem_budget as i64;
-                let pass = m.cpu <= ((b.cpu_budget as f64) * (1.0 + baseline.tolerance_pct / 100.0)).ceil() as u64
-                    && m.mem <= ((b.mem_budget as f64) * (1.0 + baseline.tolerance_pct / 100.0)).ceil() as u64;
+                let pass = m.cpu
+                    <= ((b.cpu_budget as f64) * (1.0 + baseline.tolerance_pct / 100.0)).ceil()
+                        as u64
+                    && m.mem
+                        <= ((b.mem_budget as f64) * (1.0 + baseline.tolerance_pct / 100.0)).ceil()
+                            as u64;
                 let status = if pass { "PASS" } else { "FAIL" };
                 md.push_str(&format!(
                     "| `{}` | {} | {} | {} | {} | {} | {} | {} |\n",
@@ -1111,7 +1285,10 @@ pub fn assert_all_entrypoints_within_budget() {
 fn test_all_public_entrypoints_have_recorded_budgets() {
     let baseline = load_budget_baseline();
     assert_eq!(baseline.kind, "quickex-entrypoint-budgets-v1");
-    assert!(baseline.tolerance_pct > 0.0, "tolerance_pct must be positive");
+    assert!(
+        baseline.tolerance_pct > 0.0,
+        "tolerance_pct must be positive"
+    );
 
     for &name in ALL_ENTRYPOINTS {
         let entry = baseline.entrypoints.get(name);
@@ -1121,8 +1298,16 @@ fn test_all_public_entrypoints_have_recorded_budgets() {
             name
         );
         let entry = entry.unwrap();
-        assert!(entry.cpu_budget > 0, "CPU budget for '{}' must be > 0", name);
-        assert!(entry.mem_budget > 0, "Memory budget for '{}' must be > 0", name);
+        assert!(
+            entry.cpu_budget > 0,
+            "CPU budget for '{}' must be > 0",
+            name
+        );
+        assert!(
+            entry.mem_budget > 0,
+            "Memory budget for '{}' must be > 0",
+            name
+        );
     }
 
     assert_eq!(
@@ -1187,11 +1372,15 @@ fn test_budget_within_tolerance_passes() {
     let tolerance = 10.0f64;
 
     // Exact match
-    assert!(check_budget_limit("sample_op", "CPU instructions", 100_000, budget, tolerance).is_ok());
+    assert!(
+        check_budget_limit("sample_op", "CPU instructions", 100_000, budget, tolerance).is_ok()
+    );
     // Below budget
     assert!(check_budget_limit("sample_op", "CPU instructions", 80_000, budget, tolerance).is_ok());
     // Inside tolerance
-    assert!(check_budget_limit("sample_op", "CPU instructions", 110_000, budget, tolerance).is_ok());
+    assert!(
+        check_budget_limit("sample_op", "CPU instructions", 110_000, budget, tolerance).is_ok()
+    );
 }
 
 /// AC3: Budget changes require an explicit, reviewable update rather than passing silently.
@@ -1206,7 +1395,9 @@ fn test_explicit_update_required_not_silent() {
     // Verify baseline file exists on disk and is valid JSON
     let on_disk = std::fs::read_to_string("entrypoint-budgets.json")
         .or_else(|_| std::fs::read_to_string("contracts/quickex/entrypoint-budgets.json"))
-        .or_else(|_| std::fs::read_to_string("app/contract/contracts/quickex/entrypoint-budgets.json"));
+        .or_else(|_| {
+            std::fs::read_to_string("app/contract/contracts/quickex/entrypoint-budgets.json")
+        });
 
     assert!(
         on_disk.is_ok(),
